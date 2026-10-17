@@ -2,6 +2,7 @@
 # 2026 Joey Manani & Anchorfish Team
 # Request and response shapes for the API
 
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from features.utils import get_host, normalise_url
 from .globals import MAX_URL_LENGTH, RISK_BAND, FEATURE_VALUE, LABEL
@@ -72,3 +73,20 @@ class UserInfo(BaseModel):
     created_at: datetime
 
 
+class Token(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    access_token: str
+    token_type: str = "bearer"
+
+
+class HistoryItem(BaseModel):
+    """One saved check from the signed-in user's history"""
+    model_config = ConfigDict(frozen=True)
+
+    id: int
+    url: str
+    probability: float
+    label: LABEL
+    model_name: str
+    created_at: datetime
