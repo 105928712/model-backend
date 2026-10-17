@@ -5,31 +5,26 @@
 import hashlib
 import json
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Literal, Protocol
+from typing import Protocol
 import joblib
 import numpy as np
 import pandas as pd
 from features.utils import canonical_url
 from .preprocessing import urls_to_features
-
-
-
-MODELS_DIRECTORY: Path = Path(__file__).resolve().parent.parent / "models"
-REGISTRY_PATH: Path    = MODELS_DIRECTORY / "registry.json" # will be database in near future
-Label = Literal["phishing", "legitimate"] # MUST be either of these two, hence a literal used here
+from .globals import MODELS_DIRECTORY, REGISTRY_PATH, LABEL
 
 
 class Classifier(Protocol):
     """Interface: any trained classifier including pipeline that uses features or just the raw URL"""
-    def predict_proba(self, model_input: pd.DataFrame | list[str]) -> np.ndarray: ...
+    def predict_proba(self, model_input: pd.DataFrame | list[str]) -> np.ndarray:
+        raise NotImplementedError # Linter giving me grief.
 
 
 @dataclass(frozen=True)
 class Prediction:
     """A phishing prediction, with a probability and label (phishing or legitimate)"""
     probability: float
-    label: Label
+    label: LABEL
 
 
 
