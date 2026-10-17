@@ -63,3 +63,12 @@ class Credentials(BaseModel):
         return username.lower()
 
 
+class UserInfo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id: int
+    username: str
+    role: str
+    created_at: datetime
+
+
