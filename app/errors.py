@@ -11,13 +11,13 @@ from starlette.exceptions import HTTPException
 logger = logging.getLogger(__name__)
 
 
-def error_response(status: int, message: str, details: list[dict[str, str]] | None = None) -> JSONResponse:
-    return JSONResponse(status_code=status, content={"error": {"status": status, "message": message, "details": details or []}})
+def error_response(status: int, message: str, details: list[dict[str, str]] | None = None, headers: dict[str, str] | None = None) -> JSONResponse:
+    return JSONResponse(status_code=status, content={"error": {"status": status, "message": message, "details": details or []}}, headers=headers)
 
 ##
 
 async def http_error(request: Request, error: HTTPException) -> JSONResponse:
-    return error_response(error.status_code, str(error.detail))
+    return error_response(error.status_code, str(error.detail), headers=error.headers)
 
 
 async def validation_error(request: Request, error: RequestValidationError) -> JSONResponse:
