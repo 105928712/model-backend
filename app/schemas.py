@@ -48,3 +48,18 @@ class ModelInfo(BaseModel):
 
     name: str
     threshold: float
+
+
+class Credentials(BaseModel):
+    """A username and password, for both registering and signing  in"""
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra={"examples": [{"username": "joey", "password": "i love cybersecurity!"}]})
+
+    username: str = Field(pattern=r"^[A-Za-z0-9_]{3,32}$") # Username must be 3-32 characters and contain only letters, numbers, and underscores
+    password: str = Field(min_length=12, max_length=128)   # Password must be 12-128 characters
+
+    @field_validator("username")
+    @classmethod
+    def lowercase(cls, username: str) -> str:
+        return username.lower()
+
+
