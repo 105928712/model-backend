@@ -10,17 +10,23 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import text
 from .database import engine
 from .schemas import UserInfo
-from .settings import JWT_MINUTES, JWT_SECRET
+from .settings import JWT_MINUTES, JWT_SECRET, LOGIN_TIMING_DEFENCE
 
-hasher = PasswordHasher()               # argon2id using defaults
-bearer = HTTPBearer(auto_error=False)   # reads "Authorization: Bearer <token>" else none
+hasher     = PasswordHasher()               # argon2id using defaults
+bearer     = HTTPBearer(auto_error=False)   # reads "Authorization: Bearer <token>" else none
+DUMMY_HASH = hasher.hash("ilovesienna")     # verified against when the username doesn't exist
 
 
 def hash_password(password: str) -> str:
     return hasher.hash(password)
 
 
-def password_matches(password_hash: str, password: str) -> bool:
+def password_matches(password_hash: str | None, password: str) -> bool:
+    """Returns True if the password matches the hash, False otherwise. Runs argon2 on the dummy hash if the user doesn't exist to prevent timing attacks"""
+    if password_hash is None:
+        if LOGIN_TIMING_DEFENCE:
+            password_matches(DUMMY_HASH, password)
+        return False
     try:
         return hasher.verify(password_hash, password)
     except VerificationError:
