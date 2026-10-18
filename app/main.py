@@ -34,6 +34,7 @@ from .database import engine
 from .errors import add_error_handlers
 from .model import PhishingModel, load_model
 from .preprocessing import url_features
+from .security import add_security, login_limit
 from .schemas import CheckRequest, CheckResult, Credentials, HistoryItem, ModelInfo, Token, UserInfo
 from .utils import training_domain_warnings, risk_band
 
@@ -47,6 +48,7 @@ app = FastAPI(
     contact={"name": "Joey Manani", "email": "joeymanani@theflyingrat.com"}
 )
 add_error_handlers(app)
+add_security(app)
 
 
 @app.get("/api/health")
@@ -85,7 +87,8 @@ def check(request: CheckRequest, user: UserInfo | None = Depends(optional_user))
 
 
 @app.post("/api/register", status_code=201, responses={409: {"description": "Username is taken"}})
-def register(credentials: Credentials) -> UserInfo:
+@login_limit
+def register(request: Request, credentials: Credentials) -> UserInfo:
     try:
         with engine.begin() as db:
             user = db.execute(
@@ -98,14 +101,15 @@ def register(credentials: Credentials) -> UserInfo:
 
 
 @app.post("/api/login", responses={401: {"description": "Wrong username or password"}})
-def login(credentials: Credentials) -> Token:
+@login_limit
+def login(request: Request, credentials: Credentials) -> Token:
     """Login with username/password. Client shall now send Authorization: Bearer <token>"""
     with engine.connect() as db:
         user = db.execute(text("SELECT id, role, password_hash FROM users WHERE username = :username"), {"username": credentials.username}).mappings().first()
 
     # Cyber 101: Same message for both, so the response doesn't reveal which usernames exist
-    # TODO: timing attack resistance by hash the username too
-    if user is None or not password_matches(user["password_hash"], credentials.password):
+    # unknown users still get a full hash check (dummy hash) so timing matches too
+    if not password_matches(user["password_hash"] if user else None, credentials.password) or user is None:
         raise unauthorised("Wrong username or password")
 
     # Create a new token for the user
