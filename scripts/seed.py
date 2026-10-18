@@ -16,9 +16,9 @@ model: PhishingModel = load_model()
 # username, role, password
 accounts = [("admin", "admin", os.environ["SEED_ADMIN_PASSWORD"]),
             ("user", "user", os.environ["SEED_USER_PASSWORD"]),
-            ("joey", "user", "joey"),
-            ("sienna", "user", "sienna"),
-            ("luke", "user", "luke")]
+            ("joey", "user", os.environ["SEED_JOEY_PASSWORD"]),
+            ("sienna", "user", os.environ["SEED_SIENNA_PASSWORD"]),
+            ("luke", "user", os.environ["SEED_LUKE_PASSWORD"])]
 
 
 
