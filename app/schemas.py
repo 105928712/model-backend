@@ -110,6 +110,14 @@ class Credentials(BaseModel):
         return username.lower()
 
 
+class LoginCredentials(BaseModel):
+    """Login input for demonstrating SQL injection - don't use this"""
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra={"examples": [{"username": "joey", "password": "i love cybersecurity!"}]})
+
+    username: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=128)
+
+
 class UserInfo(BaseModel):
     """A signed-in account, never includes the password hash"""
     model_config = ConfigDict(frozen=True, json_schema_extra={"examples": [{"id": 3, "username": "joey", "role": "user", "created_at": "2026-10-21T07:25:00Z"}]})
