@@ -9,7 +9,9 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
+from starlette.middleware.body_limit import RequestBodyLimitMiddleware
 from .errors import error_response
+from .globals import MAX_BODY_BYTES
 from .settings import CORS_ORIGINS, LOGIN_RATE_LIMIT, RATE_LIMIT, RATE_LIMIT_ENABLED
 
 DOCS_PATHS = ("/docs", "/redoc", "/openapi.json")  # swagger needs its CDN scripts, so no content security policy there
@@ -52,6 +54,11 @@ async def security_headers(request: Request, call_next: callable) -> JSONRespons
 
 
 def add_security(app: FastAPI) -> None:
+    # Top down!!
+
+    # Body size cap
+    app.add_middleware(RequestBodyLimitMiddleware, max_body_size=MAX_BODY_BYTES)
+
     # Add rate limiting
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, too_many_requests)
