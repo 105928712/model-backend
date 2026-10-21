@@ -3,7 +3,6 @@
 # Loads a registered model pipeline and scores URLs with it
 
 import hashlib
-import json
 from dataclasses import dataclass
 from typing import Protocol
 import joblib
@@ -11,7 +10,9 @@ import numpy as np
 import pandas as pd
 from features.utils import canonical_url
 from .preprocessing import urls_to_features
-from .globals import MODELS_DIRECTORY, REGISTRY_PATH, LABEL
+from sqlalchemy import text
+from .database import engine
+from .globals import MODELS_DIRECTORY, LABEL
 
 
 class Classifier(Protocol):
@@ -61,11 +62,15 @@ class PhishingModel:
 
 
 def load_model(name: str | None = None) -> PhishingModel:
-    """Load a model from the registry (the registry's active model by default)"""
-    registry = json.loads(REGISTRY_PATH.read_text())
-
-    name = name or registry["active"]
-    entry = registry["models"][name]
+    """Load a model from the models table (the active one by default). Unknown name raises KeyError"""
+    with engine.connect() as db:
+        if name is None:
+            entry = db.execute(text("SELECT name, file, sha256, threshold FROM models WHERE active")).mappings().first()
+        else:
+            entry = db.execute(text("SELECT name, file, sha256, threshold FROM models WHERE name = :name"), {"name": name}).mappings().first()
+    if entry is None:
+        raise KeyError(name or "no active model")
+    name = entry["name"]
 
     path = MODELS_DIRECTORY / entry["file"]
     data = path.read_bytes()

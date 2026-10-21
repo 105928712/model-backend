@@ -81,6 +81,22 @@ class ModelInfo(BaseModel):
     threshold: float
 
 
+class ModelOption(BaseModel):
+    """A model in the registry an admin may switch to"""
+    model_config = ConfigDict(frozen=True, json_schema_extra={"examples": [{"name": "final_hgb", "threshold": 0.35, "active": True}]})
+
+    name: str
+    threshold: float
+    active: bool
+
+
+class ModelChoice(BaseModel):
+    """Which registry model should answer checks from now on"""
+    model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra={"examples": [{"name": "final_nb_3to5"}]})
+
+    name: str = Field(min_length=1, max_length=64)
+
+
 class Credentials(BaseModel):
     """A username and password, for both registering and signing  in"""
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra={"examples": [{"username": "joey", "password": "i love cybersecurity!"}]})

@@ -33,14 +33,14 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
-from .auth import create_token, hash_password, optional_user, password_matches, required_user, unauthorised
+from .auth import admin_user, create_token, hash_password, optional_user, password_matches, required_user, unauthorised
 from .database import engine
 from .errors import add_error_handlers, error_responses
 from .globals import BATCH_RETRY_AFTER, MAX_BODY_BYTES
 from .model import PhishingModel, load_model
 from .preprocessing import url_features
 from .security import add_security, login_limit
-from .schemas import BatchRequest, CheckRequest, CheckResult, Credentials, Health, HistoryItem, ModelInfo, Token, UserInfo
+from .schemas import BatchRequest, CheckRequest, CheckResult, Credentials, Health, HistoryItem, ModelChoice, ModelInfo, ModelOption, Token, UserInfo
 from .settings import BATCH_CONCURRENCY, BATCH_MAX_URLS
 from .utils import training_domain_warnings, risk_band
 
@@ -120,6 +120,30 @@ def health(model: PhishingModel = Depends(current_model)) -> Health:
 def model_info(model: PhishingModel = Depends(current_model)) -> ModelInfo:
     """The model answering checks and its threshold: above the threshold is labelled phishing"""
     return ModelInfo(name=model.name, threshold=model.threshold)
+
+
+@app.get("/api/models", responses=error_responses(401, 403))
+def models(admin: UserInfo = Depends(admin_user)) -> list[ModelOption]:
+    """Admin: the predefined models the server may switch to, and which one is answering"""
+    with engine.connect() as db:
+        rows = db.execute(text("SELECT name, threshold, active FROM models ORDER BY name")).mappings()
+        return [ModelOption(**row) for row in rows]
+
+
+@app.put("/api/model", responses=error_responses(401, 403, 404, 422))
+def switch_model(request: Request, choice: ModelChoice, admin: UserInfo = Depends(admin_user)) -> ModelInfo:
+    """Admin: switch the model answering checks to one from GET /api/models"""
+    try:
+        new_model = load_model(choice.name)
+    except KeyError as e:
+        raise HTTPException(404, "No such model in the registry") from e
+    with engine.begin() as db:  # atomic
+        db.execute(text("UPDATE models SET active = false WHERE active"))
+        db.execute(text("UPDATE models SET active = true WHERE name = :name"), {"name": new_model.name})
+
+    request.app.state.model = new_model 
+    logger.info(f"Admin {admin.username} switched the model to {new_model.name}")
+    return ModelInfo(name=new_model.name, threshold=new_model.threshold)
 
 
 @app.post("/api/check", responses=error_responses(401, 413, 422))
