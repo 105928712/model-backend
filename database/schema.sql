@@ -10,13 +10,25 @@ CREATE TABLE users (
     created_at    timestamptz  NOT NULL DEFAULT now()            -- with time zone, so the API sends +00:00 and browsers show local time
 );
 
+CREATE TABLE models ( -- the predefined list for admins
+    id         integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name       varchar(64)      NOT NULL UNIQUE,
+    file       varchar(128)     NOT NULL CHECK (file ~ '^[A-Za-z0-9_-]+\.joblib$'),
+    sha256     char(64)         NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
+    threshold  double precision NOT NULL CHECK (threshold > 0 AND threshold < 1),
+    active     boolean          NOT NULL DEFAULT false,
+    created_at timestamptz      NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX models_one_active ON models (active) WHERE active;  -- at most one model answers checks
+
 CREATE TABLE checks ( -- another benefit is tracking this gives us more training data to hone in over time!!!
     id          integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id     integer       NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     url         varchar(2048) NOT NULL,
     probability double precision NOT NULL CHECK (probability >= 0 AND probability <= 1),
     label       varchar(16)   NOT NULL CHECK (label IN ('phishing', 'legitimate')),
-    model_name  varchar(64)   NOT NULL,
+    model_name  varchar(64)   NOT NULL REFERENCES models (name),
     created_at  timestamptz   NOT NULL DEFAULT now()
 );
 
