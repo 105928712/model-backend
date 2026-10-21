@@ -7,8 +7,24 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
+from .schemas import ErrorResponse
 
 logger = logging.getLogger(__name__)
+
+ERROR_MEANINGS = {
+    401: "Wrong username or password, not signed in, or the token is invalid or expired",
+    404: "No such record in your history",
+    409: "Username is taken",
+    413: "Request body too large (plain-text body, not the JSON error shape)",
+    422: "Request is not valid; details name each bad field",
+    429: "Too many requests; wait for Retry-After seconds",
+    500: "Something went wrong on the server",
+    503: "Server busy with other batches; wait for Retry-After seconds",
+}
+
+
+def error_responses(*statuses: int) -> dict[int, dict]:
+    return {status: {"model": ErrorResponse, "description": ERROR_MEANINGS[status]} for status in statuses}
 
 
 def error_response(status: int, message: str, details: list[dict[str, str]] | None = None, headers: dict[str, str] | None = None) -> JSONResponse:
