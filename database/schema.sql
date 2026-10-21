@@ -7,7 +7,7 @@ CREATE TABLE users (
     username      varchar(32)  NOT NULL UNIQUE,                     -- stored lowercase
     password_hash varchar(255) NOT NULL,
     role          varchar(16)  NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
-    created_at    timestamp    NOT NULL DEFAULT now()
+    created_at    timestamptz  NOT NULL DEFAULT now()            -- with time zone, so the API sends +00:00 and browsers show local time
 );
 
 CREATE TABLE checks ( -- another benefit is tracking this gives us more training data to hone in over time!!!
@@ -17,7 +17,7 @@ CREATE TABLE checks ( -- another benefit is tracking this gives us more training
     probability double precision NOT NULL CHECK (probability >= 0 AND probability <= 1),
     label       varchar(16)   NOT NULL CHECK (label IN ('phishing', 'legitimate')),
     model_name  varchar(64)   NOT NULL,
-    created_at  timestamp     NOT NULL DEFAULT now()
+    created_at  timestamptz   NOT NULL DEFAULT now()
 );
 
 CREATE INDEX checks_user_newest ON checks (user_id, created_at);    -- history is always "my checks, newest first"

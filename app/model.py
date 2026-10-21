@@ -42,17 +42,22 @@ class PhishingModel:
 
     def predict(self, url: str) -> Prediction:
         """Score a URL with the classifier pipeline and return a prediction object"""
-        probability = float(self.classifier.predict_proba(self.get_model_input(url))[0, 1]) # column 1 is P(phishing)
-        return Prediction(probability, "phishing" if probability > self.threshold else "legitimate") # label is based on the threshold
+        return self.predict_many([url])[0]
 
-    def get_model_input(self, url: str) -> pd.DataFrame | list[str]:
+    def predict_many(self, urls: list[str]) -> list[Prediction]:
+        """Score several URLs in one classifier call, much cheaper than one call per URL"""
+        probabilities = self.classifier.predict_proba(self.get_model_input(urls))[:, 1] # column 1 is P(phishing)
+        # label is based on the threshold
+        return [Prediction(float(p), "phishing" if p > self.threshold else "legitimate") for p in probabilities]
+
+    def get_model_input(self, urls: list[str]) -> pd.DataFrame | list[str]:
         """Feature-table models list the columns they were trained on in feature_names_in_ and raw-text models don't use this"""
         
-        # Check if we can determine the columns that the model was trained on otherwise we will be returning just the canonical URL 
+        # Check if we can determine the columns that the model was trained on otherwise we will be returning just the canonical URLs
         columns = getattr(self.classifier, "feature_names_in_", None)
         if columns is None:
-            return [canonical_url(url)] # convert to a single object list so we can grab index 0
-        return urls_to_features([url], list(columns))
+            return [canonical_url(url) for url in urls]
+        return urls_to_features(urls, list(columns))
 
 
 def load_model(name: str | None = None) -> PhishingModel:

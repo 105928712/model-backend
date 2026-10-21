@@ -25,6 +25,11 @@ LOGIN_RATE_LIMIT: int      = int(os.environ.get("LOGIN_RATE_LIMIT", "5"))
 RATE_LIMIT_ENABLED: bool   = os.environ.get("RATE_LIMIT_ENABLED", "true").lower() == "true"
 LOGIN_TIMING_DEFENCE: bool = os.environ.get("LOGIN_TIMING_DEFENCE", "true").lower() == "true"
 
+
+# For mass checking (logged in users): set BATCH_CONCURRENCY very high to switch the cap off for the DoS before/after runs
+BATCH_MAX_URLS: int        = int(os.environ.get("BATCH_MAX_URLS", "100"))
+BATCH_CONCURRENCY: int     = int(os.environ.get("BATCH_CONCURRENCY", "4"))
+
 # Re-enable after testing
 # if "*" in CORS_ORIGINS:
 #     raise RuntimeError("CORS_ORIGINS must list exact origins, not *")
