@@ -11,6 +11,15 @@ from app.model import PhishingModel, load_model
 
 SAMPLE_URLS: list[str] = ["google.com", "en.wikipedia.org/wiki/Phishing", "paypal-account-verify.top/login", "secure-update-bank.xyz/signin.php?id=123123"]
 
+
+MODELS = [("final_hgb", "final_hgb.joblib", "3b61eeded36c3f6f6dc05655426aaf4db43ccb17feb255b58ef5900630de3929", 0.35),
+          ("final_nb_3to5", "final_nb_3to5.joblib", "c8e7aae59b6b1448fb877796509f76b5c4e52bf56b85b546c414da1fa33c4cec", 0.5)]
+
+with engine.begin() as db:
+    for name, file, sha256, threshold in MODELS:
+        db.execute(text("INSERT INTO models (name, file, sha256, threshold, active) VALUES (:name, :file, :sha256, :threshold, :active) ON CONFLICT (name) DO NOTHING"),
+                   {"name": name, "file": file, "sha256": sha256, "threshold": threshold, "active": name == MODELS[0][0]})
+
 model: PhishingModel = load_model()
 
 # username, role, password
