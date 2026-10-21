@@ -70,3 +70,10 @@ def required_user(user: UserInfo | None = Depends(optional_user)) -> UserInfo:
     if user is None:
         raise unauthorised("Sign in to access this resource")
     return user
+
+
+def admin_user(user: UserInfo = Depends(required_user)) -> UserInfo:
+    """Role is read from the database (optional_user), not trusted from the token"""
+    if user.role != "admin":
+        raise HTTPException(403, "Admins only")
+    return user

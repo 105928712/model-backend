@@ -13,5 +13,4 @@ WARNINGS                        = Literal["unknown_suffix", "longer_than_trainin
 
 
 MODELS_DIRECTORY: Path          = Path(__file__).resolve().parent.parent / "models"
-REGISTRY_PATH: Path             = MODELS_DIRECTORY / "registry.json"                      # will be database in near future
 LABEL                           = Literal["phishing", "legitimate"]                       # MUST be either of these two, hence a literal used here
