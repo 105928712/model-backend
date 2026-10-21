@@ -13,6 +13,7 @@ from .preprocessing import urls_to_features
 from sqlalchemy import text
 from .database import engine
 from .globals import MODELS_DIRECTORY, LABEL
+from .settings import MODEL_HASH_CHECK
 
 
 class Classifier(Protocol):
@@ -78,7 +79,7 @@ def load_model(name: str | None = None) -> PhishingModel:
     # Because use of joblib deserialises the file and can run abitrary code, we read the bytes of the file manually
     # and run a hash check and compare it to what's in the registry right now and refuse to deserialise if it differs.
 
-    if hashlib.sha256(data).hexdigest() != entry["sha256"]:
+    if MODEL_HASH_CHECK and hashlib.sha256(data).hexdigest() != entry["sha256"]:
         raise ValueError(f"Hash mismatch when loading {name} from {path}")
 
     return PhishingModel(name, entry["threshold"], joblib.load(path))

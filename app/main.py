@@ -40,8 +40,8 @@ from .globals import BATCH_RETRY_AFTER, MAX_BODY_BYTES
 from .model import PhishingModel, load_model
 from .preprocessing import url_features
 from .security import add_security, login_limit
-from .schemas import BatchRequest, CheckRequest, CheckResult, Credentials, Health, HistoryItem, ModelChoice, ModelInfo, ModelOption, Token, UserInfo
-from .settings import BATCH_CONCURRENCY, BATCH_MAX_URLS
+from .schemas import BatchRequest, CheckRequest, CheckResult, Credentials, Health, HistoryItem, LoginCredentials, ModelChoice, ModelInfo, ModelOption, Token, UserInfo
+from .settings import BATCH_CONCURRENCY, BATCH_MAX_URLS, SQLI_DEFENCE
 from .utils import training_domain_warnings, risk_band
 
 logger = logging.getLogger("uvicorn.error")  # uvicorn's logger, so the startup line shows in the console
@@ -186,8 +186,17 @@ def register(request: Request, credentials: Credentials) -> UserInfo:
 
 @app.post("/api/login", responses=error_responses(401, 422))
 @login_limit
-def login(request: Request, credentials: Credentials) -> Token:
+def login(request: Request, credentials: LoginCredentials) -> Token:
     """Login with username/password. Client shall now send Authorization: Bearer <token>"""
+    if not SQLI_DEFENCE:
+        # SQL injection demo. The username is pasted straight into the SQL and any returned row is treated as 
+        # authenticated (no password check), so  ' OR '1'='1' logs in as the first user. 
+        with engine.connect() as db:
+            user = db.execute(text(f"SELECT id, role, password_hash FROM users WHERE username = '{credentials.username}'")).mappings().first()
+        if user is None:
+            raise unauthorised("Wrong username or password - (SQL injection demo - I never checked the password!)")
+        return Token(access_token=create_token(user["id"], user["role"]))
+
     with engine.connect() as db:
         user = db.execute(text("SELECT id, role, password_hash FROM users WHERE username = :username"), {"username": credentials.username}).mappings().first()
 
