@@ -26,6 +26,9 @@ We will need to also design the database schema too to handle these things.
 Security comes first, speed second.
 """
 
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -38,10 +41,24 @@ from .security import add_security, login_limit
 from .schemas import CheckRequest, CheckResult, Credentials, HistoryItem, ModelInfo, Token, UserInfo
 from .utils import training_domain_warnings, risk_band
 
-model: PhishingModel = load_model()
+logger = logging.getLogger("uvicorn.error")  # uvicorn's logger, so the startup line shows in the console
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Load the model once at startup (hash checked), not per request"""
+    app.state.model = load_model()
+    logger.info(f"Model {app.state.model.name} loaded")
+    yield # yield model to caller as context manager
+    # Implied destruction here
+
+
+def current_model(request: Request) -> PhishingModel:
+    return request.app.state.model
 
 
 app = FastAPI(
+    lifespan=lifespan, # lifespan ctxmanager to load model once at startup and destroy it at shutdown
     title="Anchorfish Model Backend",
     description="API for the Anchorfish model",
     version="0.1.0",
@@ -52,17 +69,17 @@ add_security(app)
 
 
 @app.get("/api/health")
-def health(request: Request) -> dict[str, str]:
+def health(model: PhishingModel = Depends(current_model)) -> dict[str, str]:
     return {"status": "ok", "model": model.name}
 
 
 @app.get("/api/model")
-def model_info() -> ModelInfo:
+def model_info(model: PhishingModel = Depends(current_model)) -> ModelInfo:
     return ModelInfo(name=model.name, threshold=model.threshold)
 
 
 @app.post("/api/check", responses={422: {"description": "The URL cannot be formatted correctly"}})
-def check(request: CheckRequest, user: UserInfo | None = Depends(optional_user)) -> CheckResult:
+def check(request: CheckRequest, user: UserInfo | None = Depends(optional_user), model: PhishingModel = Depends(current_model)) -> CheckResult:
     """Score a URL. Anyone can check, a signed-in user's checks are also saved to their history."""
     prediction = model.predict(request.url)
     warnings   = training_domain_warnings(request.url)
