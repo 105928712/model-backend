@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 ERROR_MEANINGS = {
     401: "Wrong username or password, not signed in, or the token is invalid or expired",
+    403: "Access denied",
     404: "No such record in your history",
     409: "Username is taken",
     413: "Request body too large (plain-text body, not the JSON error shape)",
