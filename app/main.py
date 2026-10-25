@@ -33,6 +33,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
+from starlette.middleware.body_limit import RequestBodyLimitMiddleware
 from .auth import admin_user, create_token, hash_password, optional_user, password_matches, required_user, unauthorised
 from .database import engine
 from .errors import add_error_handlers, error_responses
@@ -97,6 +98,9 @@ batch_slots = threading.BoundedSemaphore(BATCH_CONCURRENCY)
 # set range of check ids to be valid to 2^31 which is the database max value
 CheckId = Path(ge=1, le=2**31 - 1, description="The id of a saved check, from GET /api/history")
 
+# FastAPI documents the bearer token as required; adding an empty entry tells /docs and mocks that signing in is optional
+OPTIONAL_SIGN_IN = {"security": [{}]}
+
 
 app = FastAPI(
     lifespan=lifespan, # lifespan ctxmanager to load model once at startup and destroy it at shutdown
@@ -146,7 +150,7 @@ def switch_model(request: Request, choice: ModelChoice, admin: UserInfo = Depend
     return ModelInfo(name=new_model.name, threshold=new_model.threshold)
 
 
-@app.post("/api/check", responses=error_responses(401, 413, 422))
+@app.post("/api/check", responses=error_responses(401, 413, 422), openapi_extra=OPTIONAL_SIGN_IN)
 def check(request: CheckRequest, user: UserInfo | None = Depends(optional_user), model: PhishingModel = Depends(current_model)) -> CheckResult:
     """Score a URL. Anyone can check, a signed-in user's checks are also saved to their history."""
     results = score([request.url], model)
@@ -155,7 +159,7 @@ def check(request: CheckRequest, user: UserInfo | None = Depends(optional_user),
 
 
 # Uses a semaphore to limit the number of batches that can be scored at once (DoS protection)
-@app.post("/api/check/batch", responses=error_responses(401, 413, 422, 503), description=(
+@app.post("/api/check/batch", responses=error_responses(401, 413, 422, 503), openapi_extra=OPTIONAL_SIGN_IN, description=(
     f"Score up to {BATCH_MAX_URLS} URLs at once, results in the same order as sent. Signed-in users get every check saved. "
     f"Only {BATCH_CONCURRENCY} batches run at a time; when every slot is busy the server answers 503 with Retry-After..."))
 def check_batch(request: BatchRequest, user: UserInfo | None = Depends(optional_user), model: PhishingModel = Depends(current_model)) -> list[CheckResult]:
