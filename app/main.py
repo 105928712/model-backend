@@ -168,6 +168,10 @@ def check_batch(request: BatchRequest, user: UserInfo | None = Depends(optional_
     save_checks(user, results)
     return results
 
+# the global body cap fits one URL; FastAPI has no per-route option, so wrap this route in a bigger cap (one URL's worth each)
+batch_route = next(route for route in app.routes if getattr(route, "path", None) == "/api/check/batch")
+batch_route.app = RequestBodyLimitMiddleware(batch_route.app, max_body_size=BATCH_MAX_URLS * MAX_BODY_BYTES)
+
 
 @app.post("/api/register", status_code=201, responses=error_responses(409, 422))
 @login_limit
