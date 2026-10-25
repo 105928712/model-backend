@@ -25,3 +25,9 @@ python -m scripts.seed    # admin and user accounts
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 Auto API docs generated at http://127.0.0.1:8000/docs. Sign in with `POST /api/login`, then send `Authorization: Bearer <token>` in every request
+
+## Tests
+Needs the database up and seeded (see Running).
+```bash
+python -m pytest
+```
