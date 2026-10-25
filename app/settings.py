@@ -15,8 +15,11 @@ JWT_MINUTES: int  = int(os.environ.get("JWT_MINUTES", "30"))
 if len(JWT_SECRET) < 32:
     raise RuntimeError("JWT_SECRET in .env must be at least 32 characters")
 
-# comma separated origins from env - change * later to frontend server
-CORS_ORIGINS: list[str] = [o.strip() for o in os.environ.get("CORS_ORIGINS", "*").split(",") if o.strip()]
+# comma separated exact origins of the front end, e.g. http://localhost:5173
+CORS_ORIGINS: list[str] = [o.strip() for o in os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
+
+if "*" in CORS_ORIGINS:
+    raise RuntimeError("CORS_ORIGINS must list exact origins, not *")
 
 # requests per IP per minute; the off switches are for the before/after evidence runs
 RATE_LIMIT: int            = int(os.environ.get("RATE_LIMIT", "60"))
@@ -33,7 +36,3 @@ SQLI_DEFENCE: bool         = os.environ.get("SQLI_DEFENCE", "true").lower() == "
 # For mass checking (logged in users): set BATCH_CONCURRENCY very high to switch the cap off for the DoS before/after runs
 BATCH_MAX_URLS: int        = int(os.environ.get("BATCH_MAX_URLS", "100"))
 BATCH_CONCURRENCY: int     = int(os.environ.get("BATCH_CONCURRENCY", "4"))
-
-# Re-enable after testing
-# if "*" in CORS_ORIGINS:
-#     raise RuntimeError("CORS_ORIGINS must list exact origins, not *")
