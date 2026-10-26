@@ -1,7 +1,7 @@
 fastapi==0.162.0
 uvicorn==0.54.0
 pydantic==2.14.1
-pandas==3.0.6
+pandas==3.1.0
 scikit-learn==1.9.1
 joblib==1.6.0
 Levenshtein==0.27.5
@@ -15,4 +15,4 @@ slowapi==0.1.10
 email-validator==2.3.0
 # tests
 pytest==9.1.1
-httpx==0.28.1
+httpx2==2.16.0
