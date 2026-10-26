@@ -2,8 +2,7 @@
 # 2026 Joey Manani & Anchorfish Team
 # The API must build the same features as training and give the notebook's probability.
 #
-# expected.csv: 100 Legitimate + 100 Phishing rows (random_state=30049) from Assignment 2's features.csv 
-# with new column expected_probability = final_hgb's score on those stored features (what the model scored)
+# expected.csv: 200 training rows plus the expected probability for each, made by scripts/make_expected.py
 
 from pathlib import Path
 import pandas as pd
@@ -21,9 +20,9 @@ def results(client) -> list[dict]:
 def test_features_match_training(results):
     for result, row in zip(results, EXPECTED):
         training = {name: row[name] for name in result["features"]}
-        assert result["features"] == pytest.approx(training), row["url"]
+        assert result["features"] == training, row["url"]
 
 
 def test_probability_matches_notebook(results):
     for result, row in zip(results, EXPECTED):
-        assert result["probability"] == pytest.approx(row["expected_probability"], abs=1e-12), row["url"]
+        assert result["probability"] == row["expected_probability"], row["url"]
