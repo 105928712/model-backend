@@ -31,6 +31,7 @@ RATE_LIMIT_ENABLED: bool   = os.environ.get("RATE_LIMIT_ENABLED", "true").lower(
 LOGIN_TIMING_DEFENCE: bool = os.environ.get("LOGIN_TIMING_DEFENCE", "true").lower() == "true"
 MODEL_HASH_CHECK: bool     = os.environ.get("MODEL_HASH_CHECK", "true").lower() == "true"
 SQLI_DEFENCE: bool         = os.environ.get("SQLI_DEFENCE", "true").lower() == "true"
+ACCESS_CONTROL: bool       = os.environ.get("ACCESS_CONTROL", "true").lower() == "true"
 
 
 # For mass checking (logged in users): set BATCH_CONCURRENCY very high to switch the cap off for the DoS before/after runs
