@@ -18,7 +18,7 @@ from redteam.common import post, verdict
 
 SAMPLES = 15
 KNOWN = "admin"                 # seeded account, definitely exists
-UNKNOWN = "gheruygosdfudsyvf"   # almost certainly does not
+UNKNOWN = "gheruygodsyvf"       # almost certainly does not
 GAP_SECONDS = 0.02              # a real timing signal is far bigger than noise at this sample
 
 BAR_WIDTH = 40   # longest bar, in characters
