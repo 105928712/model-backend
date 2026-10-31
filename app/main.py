@@ -42,7 +42,7 @@ from .model import PhishingModel, load_model
 from .preprocessing import url_features
 from .security import add_security, login_limit
 from .schemas import BatchRequest, CheckRequest, CheckResult, Credentials, Health, HistoryItem, LoginCredentials, ModelChoice, ModelInfo, ModelOption, Token, UserInfo
-from .settings import BATCH_CONCURRENCY, BATCH_MAX_URLS, SQLI_DEFENCE
+from .settings import ACCESS_CONTROL, BATCH_CONCURRENCY, BATCH_MAX_URLS, SQLI_DEFENCE
 from .utils import training_domain_warnings, risk_band
 
 logger = logging.getLogger("uvicorn.error")  # uvicorn's logger, so the startup line shows in the console
@@ -235,7 +235,11 @@ def history(user: UserInfo = Depends(required_user), limit: int = Query(20, ge=1
 def history_item(check_id: int = CheckId, user: UserInfo = Depends(required_user)) -> HistoryItem:
     """One saved check"""
     with engine.connect() as db:
-        row = db.execute(text("SELECT id, url, probability, label, model_name, created_at FROM checks WHERE id = :id AND user_id = :user_id"), {"id": check_id, "user_id": user.id}).mappings().first()
+        if ACCESS_CONTROL:
+            row = db.execute(text("SELECT id, url, probability, label, model_name, created_at FROM checks WHERE id = :id AND user_id = :user_id"), {"id": check_id, "user_id": user.id}).mappings().first()
+        else:
+            # Broken access control demo: the owner filter is dropped, so any signed-in user can read another user's record by its id
+            row = db.execute(text("SELECT id, url, probability, label, model_name, created_at FROM checks WHERE id = :id"), {"id": check_id}).mappings().first()
     if row is None:
         raise HTTPException(404, "Check not found")
     return HistoryItem(**row)
@@ -245,6 +249,10 @@ def history_item(check_id: int = CheckId, user: UserInfo = Depends(required_user
 def delete_history_item(check_id: int = CheckId, user: UserInfo = Depends(required_user)) -> None:
     """Delete one saved check"""
     with engine.begin() as db:
-        deleted = db.execute(text("DELETE FROM checks WHERE id = :id AND user_id = :user_id"), {"id": check_id, "user_id": user.id}).rowcount
+        if ACCESS_CONTROL:
+            deleted = db.execute(text("DELETE FROM checks WHERE id = :id AND user_id = :user_id"), {"id": check_id, "user_id": user.id}).rowcount
+        else:
+            # Broken access control demo: the owner filter is dropped, so any signed-in user can delete another user's record by its id
+            deleted = db.execute(text("DELETE FROM checks WHERE id = :id"), {"id": check_id}).rowcount
     if not deleted:
         raise HTTPException(404, "Check not found")
