@@ -1,0 +1,3 @@
+access_control,read_status,delete_status,outcome
+off,200,204,LEAKED - reached another user's record
+on,404,404,"BLOCKED - 404, stays private"
