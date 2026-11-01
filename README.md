@@ -91,7 +91,7 @@ Copy `.env.example` and set your own values. Untracked:
 
 ## 4. Architecture
 
-<img width="722" height="702" alt="architecture" src="https://github.com/user-attachments/assets/d1440667-783a-41e3-8c81-ea1eb8863459" />
+<img width="722" height="702" alt="architecture" src="diagrams/architecture.png" />
 
 ## 5. Dependencies and versions
 
