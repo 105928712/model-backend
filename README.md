@@ -95,7 +95,7 @@ Copy `.env.example` and set your own values. Untracked:
 
 ## 5. Dependencies and versions
 
-* Python 3.14, Node
+* Python 3.14, Node 22.16.0
 
 > TODO: VERSION!!!
 
