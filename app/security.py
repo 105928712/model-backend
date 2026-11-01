@@ -58,7 +58,8 @@ async def security_headers(request: Request, call_next: callable) -> JSONRespons
 
 
 def add_security(app: FastAPI) -> None:
-    # Top down!!
+    # Bottom up!! Starlette runs the last-added middleware first, so a request goes
+    # CORS -> security headers -> rate limit -> body size cap -> route
 
     # Body size cap
     app.add_middleware(RequestBodyLimitMiddleware, max_body_size=MAX_BODY_BYTES)
