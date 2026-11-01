@@ -4,10 +4,13 @@
 # Usage: python -m scripts.seed
 
 import os
+import secrets
+from dotenv import set_key
 from sqlalchemy import text
 from app.auth import hash_password
 from app.database import engine
 from app.model import PhishingModel, load_model
+from app.settings import ENV_FILE
 
 SAMPLE_URLS: list[str] = ["google.com", "en.wikipedia.org/wiki/Phishing", "paypal-account-verify.top/login", "secure-update-bank.xyz/signin.php?id=123123"]
 
@@ -22,23 +25,26 @@ with engine.begin() as db:
 
 model: PhishingModel = load_model()
 
-# username, role, password
-accounts = [("admin", "admin", os.environ["SEED_ADMIN_PASSWORD"]),
-            ("user", "user", os.environ["SEED_USER_PASSWORD"]),
-            ("joey", "user", os.environ["SEED_JOEY_PASSWORD"]),
-            ("sienna", "user", os.environ["SEED_SIENNA_PASSWORD"]),
-            ("luke", "user", os.environ["SEED_LUKE_PASSWORD"])]
-
+# username, role. Each password comes from SEED_<USERNAME>_PASSWORD in .env
+accounts = [("admin", "admin"), ("user", "user"), ("joey", "user"), ("sienna", "user"), ("luke", "user")]
 
 
 with engine.begin() as db:
-    for username, role, password in accounts:
+    for username, role in accounts:
+        key = f"SEED_{username.upper()}_PASSWORD"
+        given = os.environ.get(key)
+        password = given or secrets.token_urlsafe(12) # random if none given
+
         user_id = db.execute(text("INSERT INTO users (username, role, password_hash) VALUES (:username, :role, :password_hash) ON CONFLICT (username) DO NOTHING RETURNING id"), {"username": username, "role": role, "password_hash": hash_password(password)}).scalar()
         if user_id is None:
             print(f"{username} already exists! Skipping...")
             continue
 
-        print(f"Created {username} - {role}")
+        if given:
+            print(f"Created {username} - {role}")
+        else:
+            set_key(ENV_FILE, key, password, quote_mode="never")
+            print(f"Created {username} - {role}, password {password} (saved to .env as {key})")
 
         # fake history
         if role == "user":

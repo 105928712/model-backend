@@ -3,12 +3,19 @@
 # load settings from .env
 
 import os
+import secrets
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(ENV_FILE)
 
 DATABASE_URL: str = os.environ["DATABASE_URL"]
+
+if not os.environ.get("JWT_SECRET"):
+    os.environ["JWT_SECRET"] = secrets.token_urlsafe(48)
+    set_key(ENV_FILE, "JWT_SECRET", os.environ["JWT_SECRET"], quote_mode="never")
+
 JWT_SECRET: str   = os.environ["JWT_SECRET"]
 JWT_MINUTES: int  = int(os.environ.get("JWT_MINUTES", "30"))
 
