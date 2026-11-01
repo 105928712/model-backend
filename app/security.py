@@ -9,10 +9,14 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
+from starlette.middleware import body_limit
 from starlette.middleware.body_limit import RequestBodyLimitMiddleware
 from .errors import error_response
 from .globals import MAX_BODY_BYTES
 from .settings import CORS_ORIGINS, LOGIN_RATE_LIMIT, RATE_LIMIT, RATE_LIMIT_ENABLED
+
+# monkey patch the default PlainTextResponse to return our error_response instead of the default
+body_limit.PlainTextResponse = lambda content, status_code: error_response(status_code, content)
 
 DOCS_PATHS = ("/docs", "/redoc", "/openapi.json")  # swagger needs its CDN scripts, so no content security policy there
 

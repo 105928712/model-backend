@@ -117,7 +117,7 @@ Summary: stranger on the network, a signed-in user accessing another user's data
 | ------ | -------------------- |
 | Input validation | Pydantic models with real constraints (URL length <= 2048, no whitespace/control characters and must have a host). A bad URL rejects the entire batch with a 422 naming its position |
 | CORS | Exact origin from `CORS_ORIGINS`. `*` rejected at startup |
-| Body size | 16 KiB cap enforced *before* the body is read with oversized requests get a plain-text 413 |
+| Body size | 16 KiB cap enforced *before* the body is read with oversized requests get a 413 |
 | Secrets | Everything from env. `.env` git-ignored, `.env.example` holds placeholders only and a secrets scan over full git history is clean |
 | Headers | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store` |
 | Binding | API and database bound to 127.0.0.1. Debug/reload off outside dev. `/docs` kept on for this app |

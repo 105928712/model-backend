@@ -305,7 +305,7 @@
             }
           },
           "413": {
-            "description": "Request body too large (plain-text body, not the JSON error shape)",
+            "description": "Request body too large",
             "content": {
               "application/json": {
                 "schema": {
@@ -394,7 +394,7 @@
             }
           },
           "413": {
-            "description": "Request body too large (plain-text body, not the JSON error shape)",
+            "description": "Request body too large",
             "content": {
               "application/json": {
                 "schema": {

@@ -64,8 +64,11 @@ def test_unknown_route_and_wrong_method_use_the_error_shape(client):
 
 
 def test_body_over_the_cap_is_413(client):
-    """Force a really long body"""
-    assert client.post("/api/check", content=b'{"url": "' + b"a" * 20_000 + b'"}', headers={"Content-Type": "application/json"}).status_code == 413
+    """Force a really long body, with and without a Content-Length, and to a route that never reads it"""
+    big = b'{"url": "' + b"a" * 20_000 + b'"}'
+    assert_error(client.post("/api/check", content=big, headers={"Content-Type": "application/json"}), 413)
+    assert_error(client.post("/api/check", content=iter([big]), headers={"Content-Type": "application/json"}), 413)  # chunked
+    assert_error(client.request("GET", "/api/health", content=big), 413)
 
 
 def test_failing_model_is_a_clean_500(client, monkeypatch):

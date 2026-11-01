@@ -16,7 +16,7 @@ ERROR_MEANINGS = {
     403: "Access denied",
     404: "No such record in your history",
     409: "Username is taken",
-    413: "Request body too large (plain-text body, not the JSON error shape)",
+    413: "Request body too large",
     422: "Request is not valid; details name each bad field",
     429: "Too many requests; wait for Retry-After seconds",
     500: "Something went wrong on the server",
