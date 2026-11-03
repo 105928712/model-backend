@@ -1168,6 +1168,39 @@
             "type": "string",
             "title": "Model Name"
           },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          },
+          "risk_band": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Risk Band"
+          },
+          "features": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Features"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -1181,17 +1214,30 @@
           "probability",
           "label",
           "model_name",
+          "threshold",
+          "risk_band",
+          "features",
           "created_at"
         ],
         "title": "HistoryItem",
-        "description": "One saved check from the signed-in user's history",
+        "description": "One saved check from the signed-in user's history, with its features and the scoring model's threshold and band",
         "examples": [
           {
             "created_at": "2026-10-21T07:25:00Z",
+            "features": {
+              "...": "every extracted feature",
+              "entropy": 4.13569955274647,
+              "path_length": 6,
+              "path_level": 1,
+              "query_length": 0,
+              "subdomain_count": 0
+            },
             "id": 42,
             "label": "phishing",
             "model_name": "final_hgb",
             "probability": 0.9999650084942906,
+            "risk_band": "high",
+            "threshold": 0.35,
             "url": "paypal-account-verify.top/login"
           }
         ]

@@ -131,6 +131,18 @@ def test_signed_in_checks_go_to_history_and_only_the_owner_sees_them(client, use
     assert_error(client.get(path, headers=owner), 404)
 
 
+def test_history_returns_features_threshold_and_band_from_the_check(client, users):
+    """The results page re-opens a past check from history, so it needs what the check returned"""
+    owner, _ = users
+    checked = client.post("/api/check/batch", json={"urls": ["google.com", "paypal-account-verify.top/login"]}, headers=owner).json()
+    saved = {item["url"]: item for item in client.get("/api/history", params={"limit": 2}, headers=owner).json()}
+    for result in checked:
+        item = saved[result["url"]]
+        assert (item["features"], item["threshold"], item["risk_band"]) == (result["features"], result["threshold"], result["risk_band"])
+        assert client.get(f"/api/history/{item['id']}", headers=owner).json() == item
+    assert saved["paypal-account-verify.top/login"]["risk_band"] == "high"
+
+
 
 def test_anonymous_checks_are_not_saved_and_history_needs_sign_in(client):
     assert client.post("/api/check", json={"url": "google.com"}).status_code == 200

@@ -137,14 +137,27 @@ class Token(BaseModel):
 
 
 class HistoryItem(BaseModel):
-    """One saved check from the signed-in user's history"""
-    model_config = ConfigDict(frozen=True, json_schema_extra={"examples": [{"id": 42, "url": "paypal-account-verify.top/login", "probability": 0.9999650084942906, "label": "phishing", "model_name": "final_hgb", "created_at": "2026-10-21T07:25:00Z"}]})
+    """One saved check from the signed-in user's history, with its features and the scoring model's threshold and band"""
+    model_config = ConfigDict(frozen=True, json_schema_extra={"examples": [{
+        "id": 42,
+        "url": "paypal-account-verify.top/login",
+        "probability": 0.9999650084942906,
+        "label": "phishing",
+        "model_name": "final_hgb",
+        "threshold": 0.35,
+        "risk_band": "high",
+        "features": {"path_level": 1, "path_length": 6, "query_length": 0, "entropy": 4.13569955274647, "subdomain_count": 0, "...": "every extracted feature"},
+        "created_at": "2026-10-21T07:25:00Z",
+    }]})
 
     id: int
     url: str
     probability: float
     label: LABEL
     model_name: str
+    threshold: float
+    risk_band: RISK_BAND
+    features: dict[str, FEATURE_VALUE]
     created_at: datetime
 
 

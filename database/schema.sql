@@ -29,6 +29,7 @@ CREATE TABLE checks ( -- another benefit is tracking this gives us more training
     probability double precision NOT NULL CHECK (probability >= 0 AND probability <= 1),
     label       varchar(16)   NOT NULL CHECK (label IN ('phishing', 'legitimate')),
     model_name  varchar(64)   NOT NULL REFERENCES models (name),
+    features    jsonb         NOT NULL,             -- every extracted feature, for re-opening a past check
     created_at  timestamptz   NOT NULL DEFAULT now()
 );
 

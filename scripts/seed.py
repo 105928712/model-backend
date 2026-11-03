@@ -6,10 +6,12 @@
 import os
 import secrets
 from dotenv import set_key
+from psycopg.types.json import Jsonb
 from sqlalchemy import text
 from app.auth import hash_password
 from app.database import engine
 from app.model import PhishingModel, load_model
+from app.preprocessing import url_features
 from app.settings import ENV_FILE
 
 SAMPLE_URLS: list[str] = ["google.com", "en.wikipedia.org/wiki/Phishing", "paypal-account-verify.top/login", "secure-update-bank.xyz/signin.php?id=123123"]
@@ -50,6 +52,6 @@ with engine.begin() as db:
         if role == "user":
             for url in SAMPLE_URLS:
                 prediction = model.predict(url)
-                db.execute(text("INSERT INTO checks (user_id, url, probability, label, model_name) VALUES (:user_id, :url, :probability, :label, :model_name)"), {"user_id": user_id, "url": url, "probability": prediction.probability, "label": prediction.label, "model_name": model.name})
+                db.execute(text("INSERT INTO checks (user_id, url, probability, label, model_name, features) VALUES (:user_id, :url, :probability, :label, :model_name, :features)"), {"user_id": user_id, "url": url, "probability": prediction.probability, "label": prediction.label, "model_name": model.name, "features": Jsonb(url_features(url))})
 
 

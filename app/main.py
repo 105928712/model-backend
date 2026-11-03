@@ -31,7 +31,8 @@ import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
-from sqlalchemy import text
+from psycopg.types.json import Jsonb
+from sqlalchemy import RowMapping, text
 from sqlalchemy.exc import IntegrityError
 from starlette.middleware.body_limit import RequestBodyLimitMiddleware
 from .auth import admin_user, create_token, hash_password, optional_user, password_matches, required_user, unauthorised
@@ -87,8 +88,8 @@ def save_checks(user: UserInfo | None, results: list[CheckResult]) -> None:
         return
     with engine.begin() as db:
         db.execute(
-            text("INSERT INTO checks (user_id, url, probability, label, model_name) VALUES (:user_id, :url, :probability, :label, :model_name)"),
-            [{"user_id": user.id, "url": r.url, "probability": r.probability, "label": r.label, "model_name": r.model} for r in results],
+            text("INSERT INTO checks (user_id, url, probability, label, model_name, features) VALUES (:user_id, :url, :probability, :label, :model_name, :features)"),
+            [{"user_id": user.id, "url": r.url, "probability": r.probability, "label": r.label, "model_name": r.model, "features": Jsonb(r.features)} for r in results],
         )
 
 
@@ -223,12 +224,20 @@ def me(user: UserInfo = Depends(required_user)) -> UserInfo:
     return user
 
 
+# A saved check with its model's threshold. A model's threshold never changes, so the band is the one from check time
+HISTORY_SELECT = "SELECT c.id, c.url, c.probability, c.label, c.model_name, m.threshold, c.features, c.created_at FROM checks c JOIN models m ON m.name = c.model_name WHERE "
+
+
+def to_history_item(row: RowMapping) -> HistoryItem:
+    return HistoryItem(**row, risk_band=risk_band(row["probability"], row["threshold"]))
+
+
 @app.get("/api/history", responses=error_responses(401, 422))
 def history(user: UserInfo = Depends(required_user), limit: int = Query(20, ge=1, le=100)) -> list[HistoryItem]:
     """The signed-in user's history, ordered by latest to oldest"""
     with engine.connect() as db:
-        rows = db.execute(text("SELECT id, url, probability, label, model_name, created_at FROM checks WHERE user_id = :user_id ORDER BY created_at DESC, id DESC LIMIT :limit"), {"user_id": user.id, "limit": limit}).mappings()
-        return [HistoryItem(**row) for row in rows]
+        rows = db.execute(text(HISTORY_SELECT + "c.user_id = :user_id ORDER BY c.created_at DESC, c.id DESC LIMIT :limit"), {"user_id": user.id, "limit": limit}).mappings()
+        return [to_history_item(row) for row in rows]
 
 
 @app.get("/api/history/{check_id}", responses=error_responses(401, 404, 422))
@@ -236,13 +245,13 @@ def history_item(check_id: int = CheckId, user: UserInfo = Depends(required_user
     """One saved check"""
     with engine.connect() as db:
         if ACCESS_CONTROL:
-            row = db.execute(text("SELECT id, url, probability, label, model_name, created_at FROM checks WHERE id = :id AND user_id = :user_id"), {"id": check_id, "user_id": user.id}).mappings().first()
+            row = db.execute(text(HISTORY_SELECT + "c.id = :id AND c.user_id = :user_id"), {"id": check_id, "user_id": user.id}).mappings().first()
         else:
             # Broken access control demo: the owner filter is dropped, so any signed-in user can read another user's record by its id
-            row = db.execute(text("SELECT id, url, probability, label, model_name, created_at FROM checks WHERE id = :id"), {"id": check_id}).mappings().first()
+            row = db.execute(text(HISTORY_SELECT + "c.id = :id"), {"id": check_id}).mappings().first()
     if row is None:
         raise HTTPException(404, "Check not found")
-    return HistoryItem(**row)
+    return to_history_item(row)
 
 
 @app.delete("/api/history/{check_id}", status_code=204, responses=error_responses(401, 404, 422))
