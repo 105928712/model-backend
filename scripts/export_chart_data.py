@@ -64,6 +64,7 @@ def examples(table: pd.DataFrame, columns: list[str], labels: pd.Series) -> dict
     legit, phishing = table[labels == "Legitimate"], table[labels == "Phishing"]
     phishing = phishing[phishing["url_length"].between(*EXAMPLE_LENGTH)]
     typical = baseline(legit[columns])
+    named = phishing[(phishing["tld"] != "") & ~phishing["is_ip_host"]]
 
     def pick(rows: pd.DataFrame) -> list[dict]:
         rows = rows.sample(min(EXAMPLES, len(rows)), random_state=SEED)
@@ -71,11 +72,12 @@ def examples(table: pd.DataFrame, columns: list[str], labels: pd.Series) -> dict
 
     picked = {}
     for col in columns:
-        values = phishing[col].astype(float)
+        pool = phishing if col == "is_ip_host" else named
+        values = pool[col].astype(float)
         sides = {"high": (values > legit[col].astype(float).quantile(0.95), values > typical[col]),
                  "low": (values < legit[col].astype(float).quantile(0.05), values < typical[col])}
         picked[col] = {"typical": typical[col],
-                       **{side: pick(phishing[rare] if rare.sum() >= EXAMPLES else phishing[any_]) for side, (rare, any_) in sides.items()}}
+                       **{side: pick(pool[rare] if rare.sum() >= EXAMPLES else pool[any_]) for side, (rare, any_) in sides.items()}}
     return picked
 
 
