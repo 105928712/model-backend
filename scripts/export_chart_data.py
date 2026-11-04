@@ -11,6 +11,7 @@ import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.inspection import permutation_importance
+from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import StandardScaler
 from app.globals import MODELS_DIRECTORY
 from app.model import load_model
@@ -19,13 +20,14 @@ SEED = 7                    # picked by trying seeds until the shown URLs were s
 SAMPLE_SIZE = 20_000        # rows used for importance and clusters; the full table is 786k
 SCATTER_POINTS = 1_500      # dots sent to the browser
 CLUSTERS = 4
-LENGTH_BIN = 10             # URL length histogram bin width
-LENGTH_MAX = 200            # longer URLs go in one "200+" bin
 EXAMPLES = 3                # phishing URLs shown per feature on Results
 EXAMPLE_LENGTH = (20, 70)   # short enough to read in one line
 TOP_FEATURES = 10           # features that get a phishing vs legitimate distribution
 DIST_BINS = 12              # bins for numeric feature distributions
 PROFILE_FEATURES = 4        # what sets each cluster apart, shown on Home
+A2_SPLIT_SEED = 987654321   # RANDOM_STATE in A2 classification_final.ipynb, rebuilds its exact test set
+A2_TEST_SIZE = 0.3
+THRESHOLDS = (0.05, 0.96, 0.01)  # start, stop, step for the threshold chart
 
 
 def baseline(legit: pd.DataFrame) -> dict:
@@ -40,11 +42,19 @@ def importance(model, sample: pd.DataFrame, y: np.ndarray) -> list[dict]:
     return sorted(rows, key=lambda r: r["importance"], reverse=True)
 
 
-def length_histogram(lengths: pd.Series, labels: pd.Series) -> list[dict]:
-    bins = lengths.clip(upper=LENGTH_MAX) // LENGTH_BIN * LENGTH_BIN
-    counts = pd.crosstab(bins, labels)
-    return [{"from": int(b), "to": None if b >= LENGTH_MAX else int(b + LENGTH_BIN),
-             "phishing": int(counts.at[b, "Phishing"]), "legitimate": int(counts.at[b, "Legitimate"])} for b in counts.index]
+def threshold_counts(model, table: pd.DataFrame, columns: list[str]) -> list[dict]:
+    """Mistake counts at each threshold on the A2 test set (same grouped 30% split and seed as classification_final.ipynb),
+    so the Home chart's precision, recall and F1 match the A2 report. The model never saw these rows"""
+    site = table["root_domain"].where(table["root_domain"] != "", table.index.str.split("/").str[0])
+    _, test = next(GroupShuffleSplit(n_splits=1, test_size=A2_TEST_SIZE, random_state=A2_SPLIT_SEED).split(table, groups=site))
+    probs = model.predict_proba(table[columns].iloc[test])[:, 1]
+    phishing = (table["type"].iloc[test] == "Phishing").to_numpy()
+    rows = []
+    for t in np.round(np.arange(*THRESHOLDS), 2):
+        flagged = probs >= t  # same rule as the A2 notebook
+        rows.append({"threshold": float(t), "tp": int((flagged & phishing).sum()), "fp": int((flagged & ~phishing).sum()),
+                     "fn": int((~flagged & phishing).sum()), "tn": int((~flagged & ~phishing).sum())})
+    return rows
 
 
 def clusters(sample: pd.DataFrame, labels: pd.Series) -> dict:
@@ -143,7 +153,7 @@ def main(features_csv: str, chart_out: str) -> None:
         "source": f"{len(everything):,} URLs from features.csv; charts other than class balance use the {len(table):,} phishing and legitimate ones; importance and clusters use a random {SAMPLE_SIZE:,}",
         "class_balance": everything["type"].str.lower().value_counts().to_dict(),
         "feature_importance": importance(model, sample, (sample_labels == "Phishing").to_numpy()),
-        "url_length": length_histogram(X["url_length"], labels),
+        "thresholds": threshold_counts(model, table, columns),
         "clusters": clusters(sample, sample_labels),
     }
     charts["distributions"] = distributions(X, labels, [row["feature"] for row in charts["feature_importance"][:TOP_FEATURES]])
