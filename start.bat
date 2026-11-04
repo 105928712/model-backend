@@ -8,7 +8,7 @@ if not exist ".env" (
     exit /b 1
 )
 
-docker compose up -d && echo Postgres running on 127.0.0.1:5432
+docker compose up -d --wait && echo Postgres running on 127.0.0.1:5432
 python -m scripts.seed && echo Admin and user accounts created
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 echo Backend running on http://127.0.0.1:8000
