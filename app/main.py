@@ -241,8 +241,8 @@ def history(user: UserInfo = Depends(required_user), limit: int = Query(20, ge=1
 
 
 @app.get("/api/history/{check_id}", responses=error_responses(401, 404, 422))
-def history_item(check_id: int = CheckId, user: UserInfo = Depends(required_user)) -> HistoryItem:
-    """One saved check"""
+def history_item(check_id: int = CheckId, user: UserInfo = Depends(required_user), model: PhishingModel = Depends(current_model)) -> HistoryItem:
+    """One saved check, with its warnings and contributions so the Results page can show it again"""
     with engine.connect() as db:
         if ACCESS_CONTROL:
             row = db.execute(text(HISTORY_SELECT + "c.id = :id AND c.user_id = :user_id"), {"id": check_id, "user_id": user.id}).mappings().first()
@@ -251,7 +251,9 @@ def history_item(check_id: int = CheckId, user: UserInfo = Depends(required_user
             row = db.execute(text(HISTORY_SELECT + "c.id = :id"), {"id": check_id}).mappings().first()
     if row is None:
         raise HTTPException(404, "Check not found")
-    return to_history_item(row)
+    item = to_history_item(row)
+    contributions = model.contributions(item.url) if model.name == item.model_name else None
+    return item.model_copy(update={"warnings": training_domain_warnings(item.url), "contributions": contributions})
 
 
 @app.delete("/api/history/{check_id}", status_code=204, responses=error_responses(401, 404, 422))

@@ -164,6 +164,9 @@ class HistoryItem(BaseModel):
     risk_band: RISK_BAND
     features: dict[str, FEATURE_VALUE]
     created_at: datetime
+    warnings: list[str] | None = Field(default=None, description="Single saved check only (GET /api/history/{id}), same as CheckResult. Null in the list")
+    contributions: dict[str, float] | None = Field(default=None, description=(
+        "Single saved check only, same as CheckResult. Worked out again with the active model, so null when the check was scored by a different model"))
 
 
 class ErrorBody(BaseModel):

@@ -709,7 +709,7 @@
     "/api/history/{check_id}": {
       "get": {
         "summary": "History Item",
-        "description": "One saved check",
+        "description": "One saved check, with its warnings and contributions so the Results page can show it again",
         "operationId": "history_item_api_history__check_id__get",
         "security": [
           {
@@ -1226,6 +1226,36 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "warnings": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warnings",
+            "description": "Single saved check only (GET /api/history/{id}), same as CheckResult. Null in the list"
+          },
+          "contributions": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contributions",
+            "description": "Single saved check only, same as CheckResult. Worked out again with the active model, so null when the check was scored by a different model"
           }
         },
         "type": "object",

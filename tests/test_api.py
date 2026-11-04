@@ -134,7 +134,7 @@ def test_signed_in_checks_go_to_history_and_only_the_owner_sees_them(client, use
     # history shows yes
 
     path = f"/api/history/{latest['id']}"
-    assert client.get(path, headers=owner).json() == latest
+    assert client.get(path, headers=owner).json().items() >= {k: v for k, v in latest.items() if v is not None}.items()
     assert_error(client.get(path, headers=other), 404)      # someone else's record looks the same as no record (security !)
     assert_error(client.delete(path, headers=other), 404)   # we cannot delete something that "doesn't exist..."
     assert client.delete(path, headers=owner).status_code == 204 # but the owner can!
@@ -149,7 +149,9 @@ def test_history_returns_features_threshold_and_band_from_the_check(client, user
     for result in checked:
         item = saved[result["url"]]
         assert (item["features"], item["threshold"], item["risk_band"]) == (result["features"], result["threshold"], result["risk_band"])
-        assert client.get(f"/api/history/{item['id']}", headers=owner).json() == item
+        detail = client.get(f"/api/history/{item['id']}", headers=owner).json()
+        single = client.post("/api/check", json={"url": result["url"]}).json()
+        assert detail == item | {"warnings": result["warnings"], "contributions": single["contributions"]}
     assert saved["paypal-account-verify.top/login"]["risk_band"] == "high"
 
 
