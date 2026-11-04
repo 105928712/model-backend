@@ -21,6 +21,8 @@ SCATTER_POINTS = 1_500      # dots sent to the browser
 CLUSTERS = 4
 LENGTH_BIN = 10             # URL length histogram bin width
 LENGTH_MAX = 200            # longer URLs go in one "200+" bin
+EXAMPLES = 3                # phishing URLs shown per feature on Results
+EXAMPLE_LENGTH = (20, 70)   # short enough to read in one line
 
 
 def baseline(legit: pd.DataFrame) -> dict:
@@ -56,10 +58,31 @@ def clusters(sample: pd.DataFrame, labels: pd.Series) -> dict:
     return {"explained_variance": [round(float(v), 4) for v in pca.explained_variance_ratio_], "summary": summary, "points": points}
 
 
+def examples(table: pd.DataFrame, columns: list[str], labels: pd.Series) -> dict:
+    """Per feature: the typical legitimate value, and a few real phishing URLs above it ("high") and below it ("low").
+    Results picks the side the checked link is on. Rare values first (past the legit 95th/5th percentile), else any"""
+    legit, phishing = table[labels == "Legitimate"], table[labels == "Phishing"]
+    phishing = phishing[phishing["url_length"].between(*EXAMPLE_LENGTH)]
+    typical = baseline(legit[columns])
+
+    def pick(rows: pd.DataFrame) -> list[dict]:
+        rows = rows.sample(min(EXAMPLES, len(rows)), random_state=SEED)
+        return [{"url": url, "root_domain": row.root_domain, "tld": row.tld} for url, row in rows.iterrows()]
+
+    picked = {}
+    for col in columns:
+        values = phishing[col].astype(float)
+        sides = {"high": (values > legit[col].astype(float).quantile(0.95), values > typical[col]),
+                 "low": (values < legit[col].astype(float).quantile(0.05), values < typical[col])}
+        picked[col] = {"typical": typical[col],
+                       **{side: pick(phishing[rare] if rare.sum() >= EXAMPLES else phishing[any_]) for side, (rare, any_) in sides.items()}}
+    return picked
+
+
 def main(features_csv: str, chart_out: str) -> None:
     model = load_model("final_hgb").classifier  # goes through the registry hash check, never a raw joblib.load
     columns = list(model.feature_names_in_)
-    everything = pd.read_csv(features_csv, usecols=["url", "type", *columns], index_col="url")
+    everything = pd.read_csv(features_csv, usecols=["url", "type", "root_domain", "tld", *columns], keep_default_na=False, index_col="url")
     table = everything[everything["type"].isin(["Phishing", "Legitimate"])]  # malware and defacement only show in class balance
     X, labels = table[columns], table["type"]
 
@@ -76,6 +99,7 @@ def main(features_csv: str, chart_out: str) -> None:
     }
     Path(chart_out).parent.mkdir(parents=True, exist_ok=True)
     Path(chart_out).write_text(json.dumps(charts))
+    Path(chart_out).with_name("featureExamples.json").write_text(json.dumps(examples(table, columns, labels)))
 
 
 if __name__ == "__main__":
