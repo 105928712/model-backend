@@ -15,7 +15,7 @@ from sklearn.preprocessing import StandardScaler
 from app.globals import MODELS_DIRECTORY
 from app.model import load_model
 
-SEED = 9238045
+SEED = 7                    # picked by trying seeds until the shown URLs were safe for work
 SAMPLE_SIZE = 20_000        # rows used for importance and clusters; the full table is 786k
 SCATTER_POINTS = 1_500      # dots sent to the browser
 CLUSTERS = 4
