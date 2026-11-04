@@ -23,6 +23,9 @@ LENGTH_BIN = 10             # URL length histogram bin width
 LENGTH_MAX = 200            # longer URLs go in one "200+" bin
 EXAMPLES = 3                # phishing URLs shown per feature on Results
 EXAMPLE_LENGTH = (20, 70)   # short enough to read in one line
+TOP_FEATURES = 10           # features that get a phishing vs legitimate distribution
+DIST_BINS = 12              # bins for numeric feature distributions
+PROFILE_FEATURES = 4        # what sets each cluster apart, shown on Home
 
 
 def baseline(legit: pd.DataFrame) -> dict:
@@ -45,17 +48,61 @@ def length_histogram(lengths: pd.Series, labels: pd.Series) -> list[dict]:
 
 
 def clusters(sample: pd.DataFrame, labels: pd.Series) -> dict:
-    """k-means on scaled features, flattened to 2D with PCA so it can be drawn"""
+    """k-means on scaled features, flattened to 2D with PCA so it can be drawn.
+    Each cluster also gets a profile: the features furthest from average (in standard deviations),
+    with the cluster's median next to everyone's, plus a few short example URLs"""
     scaled = StandardScaler().fit_transform(sample.astype(float))
     groups = KMeans(n_clusters=CLUSTERS, n_init=10, random_state=SEED).fit_predict(scaled)
     pca = PCA(n_components=2, random_state=SEED)
     xy = pca.fit_transform(scaled)
     phishing = (labels == "Phishing").to_numpy()
-    summary = [{"cluster": c, "size": int((groups == c).sum()), "phishing_share": round(float(phishing[groups == c].mean()), 4)} for c in range(CLUSTERS)]
+    numbers = sample.astype(float)
+    summary = []
+    for c in range(CLUSTERS):
+        inside = groups == c
+        shift = pd.Series(scaled[inside].mean(axis=0), index=sample.columns)
+        top = shift.abs().sort_values(ascending=False).index[:PROFILE_FEATURES]
+        short = sample.index[inside][sample["url_length"][inside].between(*EXAMPLE_LENGTH)]
+        picks = np.random.default_rng(SEED).choice(len(short), min(EXAMPLES, len(short)), replace=False)
+        summary.append({
+            "cluster": c, "size": int(inside.sum()), "phishing_share": round(float(phishing[inside].mean()), 4),
+            "profile": [{"feature": f, "shift": round(float(shift[f]), 2),
+                         "cluster": round(float(numbers[f][inside].mean()), 3), "everyone": round(float(numbers[f].mean()), 3)} for f in top],
+            "examples": [{"url": short[i], "label": labels[short[i]].lower()} for i in picks],
+        })
     pick = np.random.default_rng(SEED).choice(len(sample), SCATTER_POINTS, replace=False)
     points = [{"x": round(float(xy[i, 0]), 3), "y": round(float(xy[i, 1]), 3), "cluster": int(groups[i]),
                "label": "phishing" if phishing[i] else "legitimate", "url": sample.index[i]} for i in pick]
     return {"explained_variance": [round(float(v), 4) for v in pca.explained_variance_ratio_], "summary": summary, "points": points}
+
+
+def distributions(X: pd.DataFrame, labels: pd.Series, features: list[str]) -> dict:
+    """Share of phishing and of legitimate links in each bin, per feature.
+    True/false gets no/yes; small whole numbers get one bin each; everything else 12 even bins.
+    The top 1% goes in the last bin so one huge value doesn't flatten the rest"""
+    phishing = labels == "Phishing"
+    out = {}
+    for f in features:
+        values = X[f]
+        if values.dtype == bool:
+            names, binned = ["no", "yes"], values.astype(int)
+        else:
+            values = values.astype(float)
+            top = float(values.quantile(0.99))
+            if (values % 1 == 0).all() and top < DIST_BINS:
+                edges = list(range(int(top) + 1))
+                binned = values.clip(upper=top).astype(int)
+                names = [str(e) for e in edges[:-1]] + [f"{edges[-1]}+"]
+            else:
+                low = float(values.quantile(0.01))
+                width = (top - low) / DIST_BINS or 1
+                binned = ((values.clip(low, top) - low) // width).clip(upper=DIST_BINS - 1).astype(int)
+                names = [round(low + i * width, 3) for i in range(DIST_BINS)]  # bin starts, formatted on Home
+        counts = pd.crosstab(binned, phishing).reindex(range(len(names)), fill_value=0)
+        shares = counts / counts.sum()
+        out[f] = [{"label": n, "phishing": round(float(shares.at[i, True]), 4), "legitimate": round(float(shares.at[i, False]), 4)}
+                  for i, n in enumerate(names)]
+    return out
 
 
 def examples(table: pd.DataFrame, columns: list[str], labels: pd.Series) -> dict:
@@ -99,6 +146,7 @@ def main(features_csv: str, chart_out: str) -> None:
         "url_length": length_histogram(X["url_length"], labels),
         "clusters": clusters(sample, sample_labels),
     }
+    charts["distributions"] = distributions(X, labels, [row["feature"] for row in charts["feature_importance"][:TOP_FEATURES]])
     Path(chart_out).parent.mkdir(parents=True, exist_ok=True)
     Path(chart_out).write_text(json.dumps(charts))
     Path(chart_out).with_name("featureExamples.json").write_text(json.dumps(examples(table, columns, labels)))
