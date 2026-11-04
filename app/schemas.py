@@ -65,6 +65,7 @@ class CheckResult(BaseModel):
     outside_training_domain: bool
     warnings: list[str]
     features: dict[str, FEATURE_VALUE]
+    id: int | None = Field(default=None, description="The saved check's id for GET /api/history/{id}; null when not signed in")
     contributions: dict[str, float] | None = Field(default=None, description=(
         "Single checks only. How much each feature moved the risk, in log-odds: the score minus the score with that feature "
         "set to a typical legitimate value. Positive raised the risk. Compare bar lengths, not absolute values. "

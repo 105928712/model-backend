@@ -82,15 +82,14 @@ def score(urls: list[str], model: PhishingModel) -> list[CheckResult]:
     return results
 
 
-def save_checks(user: UserInfo | None, results: list[CheckResult]) -> None:
-    """A signed-in user's checks go to their history, anonymous checks are not stored"""
+def save_checks(user: UserInfo | None, results: list[CheckResult]) -> list[CheckResult]:
+    """A signed-in user's checks go to their history and come back with their ids, anonymous checks are not stored"""
     if user is None:
-        return
+        return results
+    insert = text("INSERT INTO checks (user_id, url, probability, label, model_name, features) VALUES (:user_id, :url, :probability, :label, :model_name, :features) RETURNING id")
     with engine.begin() as db:
-        db.execute(
-            text("INSERT INTO checks (user_id, url, probability, label, model_name, features) VALUES (:user_id, :url, :probability, :label, :model_name, :features)"),
-            [{"user_id": user.id, "url": r.url, "probability": r.probability, "label": r.label, "model_name": r.model, "features": Jsonb(r.features)} for r in results],
-        )
+        ids = [db.execute(insert, {"user_id": user.id, "url": r.url, "probability": r.probability, "label": r.label, "model_name": r.model, "features": Jsonb(r.features)}).scalar_one() for r in results]
+    return [r.model_copy(update={"id": check_id}) for r, check_id in zip(results, ids)]
 
 
 # how many batches may be scored at once or the rest get a 503 OVERLOADED instead of queueing
@@ -154,8 +153,7 @@ def switch_model(request: Request, choice: ModelChoice, admin: UserInfo = Depend
 @app.post("/api/check", responses=error_responses(401, 413, 422), openapi_extra=OPTIONAL_SIGN_IN)
 def check(request: CheckRequest, user: UserInfo | None = Depends(optional_user), model: PhishingModel = Depends(current_model)) -> CheckResult:
     """Score a URL. Anyone can check, a signed-in user's checks are also saved to their history."""
-    results = score([request.url], model)
-    save_checks(user, results)
+    results = save_checks(user, score([request.url], model))
     return results[0].model_copy(update={"contributions": model.contributions(request.url)})
 
 
@@ -170,8 +168,7 @@ def check_batch(request: BatchRequest, user: UserInfo | None = Depends(optional_
         results = score(list(request.urls), model)
     finally:
         batch_slots.release()
-    save_checks(user, results)
-    return results
+    return save_checks(user, results)
 
 # the global body cap fits one URL; FastAPI has no per-route option, so wrap this route in a bigger cap (one URL's worth each)
 batch_route = next(route for route in app.routes if getattr(route, "path", None) == "/api/check/batch")

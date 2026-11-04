@@ -148,6 +148,7 @@ def test_history_returns_features_threshold_and_band_from_the_check(client, user
     saved = {item["url"]: item for item in client.get("/api/history", params={"limit": 2}, headers=owner).json()}
     for result in checked:
         item = saved[result["url"]]
+        assert result["id"] == item["id"]  # so the frontend can link straight to the saved check
         assert (item["features"], item["threshold"], item["risk_band"]) == (result["features"], result["threshold"], result["risk_band"])
         detail = client.get(f"/api/history/{item['id']}", headers=owner).json()
         single = client.post("/api/check", json={"url": result["url"]}).json()
@@ -157,7 +158,8 @@ def test_history_returns_features_threshold_and_band_from_the_check(client, user
 
 
 def test_anonymous_checks_are_not_saved_and_history_needs_sign_in(client):
-    assert client.post("/api/check", json={"url": "google.com"}).status_code == 200
+    anonymous = client.post("/api/check", json={"url": "google.com"})
+    assert anonymous.status_code == 200 and anonymous.json()["id"] is None
     assert_error(client.get("/api/history"), 401)
 
 
