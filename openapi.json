@@ -995,6 +995,21 @@
             },
             "type": "object",
             "title": "Features"
+          },
+          "contributions": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contributions",
+            "description": "Single checks only. How much each feature moved the risk, in log-odds: the score minus the score with that feature set to a typical legitimate value. Positive raised the risk. Compare bar lengths, not absolute values. Largest first, unchanged features left out. Null for batch checks and raw-text models"
           }
         },
         "type": "object",
@@ -1013,6 +1028,12 @@
         "description": "Everything known about one scored URL - return DTO for the front end",
         "examples": [
           {
+            "contributions": {
+              "num_sensitive_words": 4.493,
+              "path_entropy": -0.41,
+              "path_level": 1.222,
+              "tld_is_commonly_abused": 1.946
+            },
             "features": {
               "...": "every extracted feature",
               "entropy": 4.13569955274647,

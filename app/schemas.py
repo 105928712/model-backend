@@ -53,6 +53,7 @@ class CheckResult(BaseModel):
         "outside_training_domain": False,
         "warnings": [],
         "features": {"path_level": 1, "path_length": 6, "query_length": 0, "entropy": 4.13569955274647, "subdomain_count": 0, "...": "every extracted feature"},
+        "contributions": {"num_sensitive_words": 4.493, "tld_is_commonly_abused": 1.946, "path_level": 1.222, "path_entropy": -0.41},
     }]})
 
     url: str
@@ -64,6 +65,10 @@ class CheckResult(BaseModel):
     outside_training_domain: bool
     warnings: list[str]
     features: dict[str, FEATURE_VALUE]
+    contributions: dict[str, float] | None = Field(default=None, description=(
+        "Single checks only. How much each feature moved the risk, in log-odds: the score minus the score with that feature "
+        "set to a typical legitimate value. Positive raised the risk. Compare bar lengths, not absolute values. "
+        "Largest first, unchanged features left out. Null for batch checks and raw-text models"))
 
 class Health(BaseModel):
     """The server is up and which model it loaded"""

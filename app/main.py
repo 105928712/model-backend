@@ -156,7 +156,7 @@ def check(request: CheckRequest, user: UserInfo | None = Depends(optional_user),
     """Score a URL. Anyone can check, a signed-in user's checks are also saved to their history."""
     results = score([request.url], model)
     save_checks(user, results)
-    return results[0]
+    return results[0].model_copy(update={"contributions": model.contributions(request.url)})
 
 
 # Uses a semaphore to limit the number of batches that can be scored at once (DoS protection)

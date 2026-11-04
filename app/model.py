@@ -3,6 +3,7 @@
 # Loads a registered model pipeline and scores URLs with it
 
 import hashlib
+import json
 from dataclasses import dataclass
 from typing import Protocol
 import joblib
@@ -14,6 +15,9 @@ from sqlalchemy import text
 from .database import engine
 from .globals import MODELS_DIRECTORY, LABEL
 from .settings import MODEL_HASH_CHECK
+
+# Typical legitimate value of every feature (median, or most common for true/false), from scripts/export_chart_data.py
+LEGIT_BASELINE: dict = json.loads((MODELS_DIRECTORY / "legit_baseline.json").read_text())
 
 
 class Classifier(Protocol):
@@ -51,6 +55,19 @@ class PhishingModel:
         probabilities = self.classifier.predict_proba(self.get_model_input(urls))[:, 1] # column 1 is P(phishing)
         # label is based on the threshold
         return [Prediction(float(p), "phishing" if p > self.threshold else "legitimate") for p in probabilities]
+
+    def contributions(self, url: str) -> dict[str, float] | None:
+        """How much each feature raised (+) or lowered (-) the risk: score again with that one feature set to its
+        typical legitimate value. Measured in log-odds, because near p = 1 probabilities saturate and every change
+        looks like 0. Only features that changed the score are returned. None for raw-text models"""
+        columns = getattr(self.classifier, "feature_names_in_", None)
+        if columns is None:
+            return None
+        row = urls_to_features([url], list(columns))
+        variants = pd.concat([row] + [row.assign(**{column: LEGIT_BASELINE[column]}) for column in columns], ignore_index=True)
+        log_odds = self.classifier.decision_function(variants)
+        changes = {column: round(float(log_odds[0] - log_odds[i]), 3) for i, column in enumerate(columns, start=1)}
+        return {column: change for column, change in sorted(changes.items(), key=lambda item: -abs(item[1])) if change}
 
     def get_model_input(self, urls: list[str]) -> pd.DataFrame | list[str]:
         """Feature-table models list the columns they were trained on in feature_names_in_ and raw-text models don't use this"""

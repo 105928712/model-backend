@@ -35,6 +35,16 @@ def test_check_scores_a_url(client):
     assert result["features"]["tld"] == "top"
 
 
+def test_check_explains_what_raised_the_score(client):
+    """Contributions name the risky features, largest first, and batch skips them"""
+    result = client.post("/api/check", json={"url": "paypal-account-verify.top/login"}).json()
+    changes = list(result["contributions"].values())
+    assert changes and changes == sorted(changes, key=abs, reverse=True) and 0 not in changes
+    assert result["contributions"]["tld_is_commonly_abused"] > 0
+    batch = client.post("/api/check/batch", json={"urls": ["google.com"]}).json()
+    assert batch[0]["contributions"] is None
+
+
 def test_check_flags_urls_outside_training(client):
     """Too long string"""
     result = client.post("/api/check", json={"url": "example.notarealtld/" + "a" * 1000}).json()
