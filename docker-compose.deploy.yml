@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: anchorfish
-      POSTGRES_PASSWORD: ***REMOVED***
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: anchorfish
     volumes:
       - database:/var/lib/postgresql
@@ -36,10 +36,10 @@ services:
         CMD python -m scripts.seed && exec uvicorn app.main:app --host 0.0.0.0 --port 6345 --proxy-headers --forwarded-allow-ips '*'
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+psycopg://anchorfish:***REMOVED***@database:5432/anchorfish
-      JWT_SECRET: "CHANGEME but i must be 48 chars" 
-      SEED_ADMIN_PASSWORD: "CHANGEME"
-      SEED_USER_PASSWORD: "CHANGEME"
+      DATABASE_URL: postgresql+psycopg://anchorfish:${POSTGRES_PASSWORD}@database:5432/anchorfish
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env, at least 32 characters}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?set SEED_ADMIN_PASSWORD in .env}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:?set SEED_USER_PASSWORD in .env}
     depends_on:
       database:
         condition: service_healthy
