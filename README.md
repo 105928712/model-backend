@@ -71,9 +71,7 @@ Health check: <http://127.0.0.1:8000/api/health>
 | --------- | --------- | ------- |
 | API | `127.0.0.1:8000` | loopback only |
 | Database | `127.0.0.1:5432` | loopback only; env `POSTGRES_PORT` to change |
-| Frontend (dev server) | `127.0.0.1:5173` | Vite default; must match `CORS_ORIGINS` |
-
-> TODO: frontend probably will change so need sienna or luke to fact check above port
+| Frontend (dev server) | `localhost:5173` | Vite default; must match `CORS_ORIGINS` |
 
 ## 3. Environment variables (`.env`)
 
@@ -95,9 +93,7 @@ Copy `.env.example` and set your own values. Untracked:
 
 ## 5. Dependencies and versions
 
-* Python 3.14, Node 22.16.0
-
-> TODO: VERSION!!!
+* Python 3.14 (the frontend needs Node 22.22+ or 24)
 
 * Python dependencies are pinned in `requirements.txt`
 
@@ -118,7 +114,7 @@ Summary: stranger on the network, a signed-in user accessing another user's data
 | Input validation | Pydantic models with real constraints (URL length <= 2048, no whitespace/control characters and must have a host). A bad URL rejects the entire batch with a 422 naming its position |
 | CORS | Exact origin from `CORS_ORIGINS`. `*` rejected at startup |
 | Body size | 16 KiB cap enforced *before* the body is read with oversized requests get a 413 |
-| Secrets | Everything from env. `.env` git-ignored, `.env.example` holds placeholders only and a secrets scan over full git history is clean |
+| Secrets | Everything from env. `.env` git-ignored, `.env.example` holds placeholders only. `gitleaks git .` over the full git history finds only false alarms such as the shortened example token in `/docs` (`app/schemas.py`, `openapi.json`) |
 | Headers | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'`, `Referrer-Policy: no-referrer`, `Cache-Control: no-store` |
 | Binding | API and database bound to 127.0.0.1. Debug/reload off outside dev. `/docs` kept on for this app |
 | Errors | One JSON shape `{"error": {status, message, details}}` for every error, including a failing model call. No stack traces or file paths in any response even to admins |
@@ -171,6 +167,10 @@ python -m redteam.sql_injection  # etc., see redteam/README.md
 
 * Designed to run on localhost / the LAN only
 
+* `POST /api/register` answers 409 for a taken username, so usernames can still be found that way (the login timing defence doesn't cover it)
+
+* With the DoS cap on, ordinary checks during a flood are faster (median 377 ms) but still slower than an idle server. Fixing this could be scoring batches in a separate process pool
+
 ## 12. Statement of generative AI use
 
 Generative AI (Claude) was used for research, comparisons, explanations and general queries in the substitute of a generic search engine such as Google. It was used for brainstorming the database schema. By extension, also supported assistance in best-practice checking, syntax validation, improvement suggestions and drafting iterations of modules for example `harness.py`. All outputs validated, cross-checked, proofed, edited and vetted.
@@ -179,3 +179,4 @@ Generative AI (Claude) was used for research, comparisons, explanations and gene
 
 * Phishing URL datasets: see citations in `feature-extraction/README.md` (Kaggle, Mendeley).
 * Library docs: FastAPI, Pydantic, SQLAlchemy, slowapi, argon2-cffi, PyJWT.
+* More in the root-level README.
